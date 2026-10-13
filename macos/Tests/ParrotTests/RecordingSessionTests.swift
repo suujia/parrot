@@ -60,10 +60,10 @@ final class RecordingSessionTests: XCTestCase {
         var ms = 0
     }
 
-    private var root: URL!
-    private var time: TimeBox!
-    private var mic: FakeRecorder!
-    private var system: FakeRecorder!
+    nonisolated(unsafe) private var root: URL!
+    nonisolated(unsafe) private var time: TimeBox!
+    nonisolated(unsafe) private var mic: FakeRecorder!
+    nonisolated(unsafe) private var system: FakeRecorder!
 
     override func setUpWithError() throws {
         root = FileManager.default.temporaryDirectory
