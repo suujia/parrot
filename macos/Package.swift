@@ -15,18 +15,9 @@ let package = Package(
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
                 .product(name: "FluidAudio", package: "FluidAudio"),
             ],
-            exclude: ["Info.plist"],
-            linkerSettings: [
-                // Embed Info.plist into the binary so TCC can attribute the
-                // system-audio-capture permission to parrot itself when it
-                // runs as a LaunchAgent (no .app bundle to carry a plist).
-                .unsafeFlags([
-                    "-Xlinker", "-sectcreate",
-                    "-Xlinker", "__TEXT",
-                    "-Xlinker", "__info_plist",
-                    "-Xlinker", "Sources/parrot/Info.plist",
-                ]),
-            ]
+            // Info.plist and the entitlements belong to Parrot.app; see
+            // scripts/build-macos-app.
+            exclude: ["Info.plist", "Parrot.entitlements"]
         ),
         .testTarget(
             name: "ParrotTests",

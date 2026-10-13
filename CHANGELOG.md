@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.2.0 - 2026-10-13
+
+- Renamed the project from Quill to Parrot: package, executable, bundle id
+  (`com.suujia.parrot`), config path (`~/.config/parrot/config.json`, with a
+  one-release fallback to the old `~/.config/quill/config.json`), scripts,
+  logs (`/tmp/parrot.*.log`), and docs. Session folders and transcript formats
+  are unchanged.
+- Shipped macOS Parrot as a real menu-bar app bundle: `scripts/build-macos-app`
+  assembles `Parrot.app` (icon, Info.plist with `LSUIElement`, ad-hoc
+  hardened-runtime signature) and `scripts/install-macos` installs it into
+  `/Applications` with `/usr/local/bin/parrot` symlinked into the bundle.
+- Replaced the hand-written LaunchAgent with `SMAppService.mainApp`, so Parrot
+  appears in Login Items; added a "Launch at login" menu toggle with approval
+  guidance, and kept a crash-restarting LaunchAgent behind
+  `install --launch-at-login --keep-alive`.
+- Made Parrot behave like a persistent app: single instance per bundle id,
+  reopening pops the menu-bar menu, quit/logout stops a live session cleanly,
+  and notifications go through `UNUserNotificationCenter` from the bundle.
+- Fixed starting a recording with no microphone device crashing the app
+  instead of reporting the failure.
+
 ## 0.1.3 - 2026-08-04
 
 - Fixed macOS route changes silently truncating capture: both tracks now have

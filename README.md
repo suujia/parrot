@@ -7,12 +7,14 @@ A fully local meeting recorder and transcriber. Parrot records your mic and the 
 ## 1. Install
 
 ```sh
-./scripts/build-macos
-sudo ./scripts/install-macos
-parrot install --launch-at-login   # optional
+./scripts/build-macos-app          # builds macos/.build/Parrot.app
+sudo ./scripts/install-macos       # → /Applications/Parrot.app + /usr/local/bin/parrot
+open /Applications/Parrot.app      # or launch Parrot from Launchpad / Spotlight
 ```
 
-Requires macOS 15+. Apple Silicon is recommended for transcription speed.
+Parrot is a menu-bar-only app (no Dock tile). Turn on **Launch at login** from
+its menu so it comes back after a reboot. Requires macOS 15+. Apple Silicon is
+recommended for transcription speed.
 
 ## 2. Usage
 

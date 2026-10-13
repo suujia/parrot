@@ -21,7 +21,37 @@ enum DoctorReport {
             checkSystemAudio(),
             checkRecordingsRoot(recordingsRoot),
             checkTranscription(),
+            checkLaunchAtLogin(),
         ]
+    }
+
+    /// Where the app runs from and whether it is set to start at login.
+    static func checkLaunchAtLogin() -> Check {
+        guard AppBundle.isBundled else {
+            return Check(
+                name: "launch at login",
+                status: .warn("not running from Parrot.app"),
+                remediation: "./scripts/build-macos-app && ./scripts/install-macos, then open -a Parrot"
+            )
+        }
+        switch LoginItem.status {
+        case .enabled:
+            return Check(name: "launch at login", status: .ok, remediation: nil)
+        case .requiresApproval:
+            return Check(
+                name: "launch at login",
+                status: .warn("waiting for approval"),
+                remediation: "System Settings → General → Login Items → enable Parrot"
+            )
+        case .notRegistered, .notFound:
+            return Check(
+                name: "launch at login",
+                status: .warn("off"),
+                remediation: "parrot install --launch-at-login, or the menu-bar menu"
+            )
+        @unknown default:
+            return Check(name: "launch at login", status: .warn("unknown state"), remediation: nil)
+        }
     }
 
     static func checkMicrophone() -> Check {
@@ -39,7 +69,7 @@ enum DoctorReport {
             return Check(
                 name: "microphone",
                 status: .fail("denied"),
-                remediation: "System Settings → Privacy & Security → Microphone → enable for Parrot (or your terminal)"
+                remediation: "System Settings → Privacy & Security → Microphone → enable for Parrot (or your terminal when using swift run)"
             )
         @unknown default:
             return Check(name: "microphone", status: .fail("unknown state"), remediation: nil)
