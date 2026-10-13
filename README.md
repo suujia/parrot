@@ -1,15 +1,15 @@
-<p align="center"><img src="docs/icon.png" width="96" alt="quill"></p>
+<p align="center"><img src="docs/icon.png" width="96" alt="parrot"></p>
 
-# quill
+# Parrot
 
-A fully local meeting recorder and transcriber. Quill records your mic and the call's audio as separate tracks, transcribes them on-device, and writes a timestamped `me` / `them` transcript. Nothing leaves the machine.
+A fully local meeting recorder and transcriber. Parrot records your mic and the call's audio as separate tracks, transcribes them on-device, and writes a timestamped `me` / `them` transcript. Nothing leaves the machine.
 
 ## 1. Install
 
 ```sh
 ./scripts/build-macos
 sudo ./scripts/install-macos
-quill install --launch-at-login   # optional
+parrot install --launch-at-login   # optional
 ```
 
 Requires macOS 15+. Apple Silicon is recommended for transcription speed.
@@ -34,4 +34,4 @@ Each platform is a native, independent implementation. They share the session la
 
 ## 4. License
 
-[MIT](LICENSE). Sibling of [parrot](https://github.com/humanitas-labs/parrot).
+[MIT](LICENSE).

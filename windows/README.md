@@ -1,10 +1,10 @@
-# quill for Windows
+# Parrot for Windows
 
 **Status:** Capture probe implemented, awaiting validation on Windows 11
 hardware; no installable build exists yet.
 
 The Windows implementation will provide the same local recording and
-transcription behavior as Quill for macOS using native Windows facilities. Its
+transcription behavior as Parrot for macOS using native Windows facilities. Its
 audio boundary is two independent streams:
 
 ```text
@@ -31,9 +31,9 @@ On Windows 11 (needs the MSVC toolchain, `rustup default stable-msvc`):
 
 ```powershell
 cargo build --release
-target\release\quill-probe.exe list
-target\release\quill-probe.exe record teams        # or a pid; Ctrl-C stops
-target\release\quill-probe.exe record --all-system-audio
+target\release\parrot-probe.exe list
+target\release\parrot-probe.exe record teams        # or a pid; Ctrl-C stops
+target\release\parrot-probe.exe record --all-system-audio
 ```
 
 Sessions land in `%USERPROFILE%\Recordings\yyyy.MM.dd-HHmm\` as `mic.wav`,

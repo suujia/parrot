@@ -1,6 +1,6 @@
 import Foundation
 
-/// Optional user config at ~/.config/quill/config.json:
+/// Optional user config at ~/.config/parrot/config.json:
 ///
 ///     {
 ///       "recordings_dir": "~/Recordings",
@@ -15,6 +15,11 @@ import Foundation
 /// after recording when transcription is disabled.
 enum Config {
     static let path = FileManager.default.homeDirectoryForCurrentUser
+        .appendingPathComponent(".config/parrot/config.json")
+
+    /// Pre-rename location (the app used to be called quill). Read for one
+    /// release when the new path is absent, with a deprecation note.
+    static let legacyPath = FileManager.default.homeDirectoryForCurrentUser
         .appendingPathComponent(".config/quill/config.json")
 
     static let defaultRoot = FileManager.default.homeDirectoryForCurrentUser
@@ -61,7 +66,8 @@ enum Config {
     /// than silently ignored — recordings landing in an unexpected place is
     /// worse than a warning.
     private static func load() -> [String: Any]? {
-        guard FileManager.default.fileExists(atPath: path.path) else { return nil }
+        let path = activePath()
+        guard let path else { return nil }
         guard
             let data = try? Data(contentsOf: path),
             let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
@@ -74,6 +80,24 @@ enum Config {
         }
         return json
     }
+
+    /// The config file to read: the current path if it exists, else the
+    /// legacy quill path (noted once on stderr), else nil.
+    private static func activePath() -> URL? {
+        if FileManager.default.fileExists(atPath: path.path) { return path }
+        if FileManager.default.fileExists(atPath: legacyPath.path) {
+            _ = legacyNote
+            return legacyPath
+        }
+        return nil
+    }
+
+    private static let legacyNote: Void = {
+        FileHandle.standardError.write(
+            Data(
+                "note: reading legacy config \(legacyPath.path); move it to \(path.path) (quill support will be removed next release)\n".utf8
+            ))
+    }()
 
     /// Resolve the recordings root from an optional CLI override.
     static func resolveRoot(cliOverride: String?) -> URL {

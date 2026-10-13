@@ -1,5 +1,5 @@
 //! Recording session: two tracks, one directory, meta.json — mirrors
-//! `macos/Sources/quill/RecordingSession.swift` and the shared contract in
+//! `macos/Sources/parrot/RecordingSession.swift` and the shared contract in
 //! `docs/architecture.md`.
 
 use std::path::{Path, PathBuf};

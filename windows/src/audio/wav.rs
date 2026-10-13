@@ -201,7 +201,7 @@ mod tests {
     }
 
     fn tmp(name: &str) -> std::path::PathBuf {
-        let dir = std::env::temp_dir().join("quill-wav-tests");
+        let dir = std::env::temp_dir().join("parrot-wav-tests");
         std::fs::create_dir_all(&dir).unwrap();
         dir.join(name)
     }
@@ -269,8 +269,8 @@ mod tests {
                     "audio::wav::tests::checkpoint_abort_helper",
                     "--ignored",
                 ])
-                .env("QUILL_WAV_CRASH_STAGE", stage)
-                .env("QUILL_WAV_CRASH_PATH", &path)
+                .env("PARROT_WAV_CRASH_STAGE", stage)
+                .env("PARROT_WAV_CRASH_PATH", &path)
                 .status()
                 .unwrap();
             assert!(!status.success(), "helper did not abort at {stage}");
@@ -287,13 +287,13 @@ mod tests {
     #[test]
     #[ignore = "subprocess helper for aborted_checkpoint_remains_decodable_at_every_boundary"]
     fn checkpoint_abort_helper() {
-        let stage = match std::env::var("QUILL_WAV_CRASH_STAGE").unwrap().as_str() {
+        let stage = match std::env::var("PARROT_WAV_CRASH_STAGE").unwrap().as_str() {
             "data-synced" => CrashStage::Pcm,
             "riff-synced" => CrashStage::RiffLength,
             "data-size-synced" => CrashStage::DataLength,
             other => panic!("unknown crash stage: {other}"),
         };
-        let path = std::path::PathBuf::from(std::env::var_os("QUILL_WAV_CRASH_PATH").unwrap());
+        let path = std::path::PathBuf::from(std::env::var_os("PARROT_WAV_CRASH_PATH").unwrap());
         let mut writer = WavWriter::with_patch_interval(&path, 48_000, Duration::ZERO).unwrap();
         writer.write_samples(&[1000i16; 480]).unwrap();
         writer.crash_stage = Some(stage);

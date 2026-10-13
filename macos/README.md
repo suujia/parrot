@@ -1,8 +1,8 @@
-# quill for macOS
+# Parrot for macOS
 
 A minimal, fully local macOS meeting recorder + transcriber. One menu-bar
 click records your mic and all system audio as two separate tracks; when you
-stop, quill transcribes both on-device and writes a speaker-tagged transcript.
+stop, parrot transcribes both on-device and writes a speaker-tagged transcript.
 Nothing ever leaves the machine.
 
 The macOS implementation is a single Swift binary with a menu-bar tray and no
@@ -11,10 +11,10 @@ app bundle.
 ## Install
 
 ```sh
-cd quill
+cd parrot
 ./scripts/build-macos
 sudo ./scripts/install-macos
-quill install --launch-at-login   # optional — runs in the background on login
+parrot install --launch-at-login   # optional — runs in the background on login
 ```
 
 For direct development inside this platform package:
@@ -30,7 +30,7 @@ transcription speed.
 
 ## How to use
 
-1. **Run it** (`quill` in a terminal, or the LaunchAgent).
+1. **Run it** (`parrot` in a terminal, or the LaunchAgent).
 2. **Click the feather in the menu bar → Start recording.** First use prompts
    for microphone and System Audio Recording permissions. While recording, the
    icon turns red with a running elapsed counter, and macOS shows the purple
@@ -61,7 +61,7 @@ written is still readable.
 
 macOS audio routes are not stable for the length of a meeting — connecting or
 disconnecting AirPods, or changing the default device, can silently stop a
-capture stream. Quill watches both tracks (a one-second watchdog over callback
+capture stream. Parrot watches both tracks (a one-second watchdog over callback
 progress, plus route-change notifications) and, if a track stalls, restarts it
 on the current route into a new numbered segment (`mic-002.caf`, …). The
 already-recorded segment is never modified.
@@ -93,7 +93,7 @@ the tail or an unrecovered stall).
 Built in, on-device, automatic. The default engine is **Parakeet TDT 0.6B v2**
 (English) via [FluidAudio](https://github.com/FluidInference/FluidAudio)'s
 Core ML port — roughly 20 seconds per hour of audio on Apple Silicon. Models
-(~600 MB) download once on first transcription; `quill doctor` tells you
+(~600 MB) download once on first transcription; `parrot doctor` tells you
 whether they're already cached so you're never downloading after an important
 meeting.
 
@@ -109,7 +109,7 @@ large-v3-turbo) is planned as the fallback / re-transcription option.
 
 ## Config
 
-Optional, at `~/.config/quill/config.json`:
+Optional, at `~/.config/parrot/config.json`:
 
 ```json
 {
@@ -136,11 +136,11 @@ Optional, at `~/.config/quill/config.json`:
 ## CLI
 
 ```sh
-quill                        # run the menu-bar daemon (^C to quit)
-quill run --out <dir>        # custom recordings root (default ~/Recordings)
-quill doctor                 # check permissions, recordings folder, models
-quill install --launch-at-login
-quill install --uninstall
+parrot                        # run the menu-bar daemon (^C to quit)
+parrot run --out <dir>        # custom recordings root (default ~/Recordings)
+parrot doctor                 # check permissions, recordings folder, models
+parrot install --launch-at-login
+parrot install --uninstall
 ```
 
 ## Stack
@@ -163,4 +163,4 @@ quill install --uninstall
 - Parakeet v2 is English-only. Other languages will come with the Whisper
   engine.
 - The binary embeds its Info.plist (`__TEXT,__info_plist`) so TCC can
-  attribute permissions to quill itself when running as a LaunchAgent.
+  attribute permissions to parrot itself when running as a LaunchAgent.

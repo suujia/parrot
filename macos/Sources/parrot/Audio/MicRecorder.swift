@@ -38,7 +38,7 @@ final class MicRecorder: TrackRecorder, @unchecked Sendable {
 
     let kind = TrackKind.mic
 
-    private let control = DispatchQueue(label: "com.digimata.quill.mic-control")
+    private let control = DispatchQueue(label: "com.suujia.parrot.mic-control")
     private var engine: AVAudioEngine?
     private var segment: SegmentFile?
     private var configObserver: NSObjectProtocol?
