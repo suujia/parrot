@@ -1,6 +1,6 @@
 import XCTest
 
-@testable import quill
+@testable import parrot
 
 /// Offset-preserving merge: each segment file's transcript shifts by its
 /// session-clock offset, and recovery gaps stay visible as timestamp gaps.

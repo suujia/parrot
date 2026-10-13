@@ -1,6 +1,6 @@
 import XCTest
 
-@testable import quill
+@testable import parrot
 
 /// Deterministic tests for the pure per-track health reducer. Time is plain
 /// integers on the session clock; no audio devices, TCC, or real-time sleeps.

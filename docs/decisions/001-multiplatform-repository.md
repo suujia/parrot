@@ -2,13 +2,13 @@
 
 Last updated: `2026.08.01`
 
-> Keep Quill as one product repository with symmetric platform implementation
+> Keep Parrot as one product repository with symmetric platform implementation
 > roots. Share behavioral contracts and fixtures across the platforms, but let
 > each native implementation own its source and build graph.
 
 ## 1. Decision
 
-- Keep macOS, Windows, and Linux in the existing Quill repository.
+- Keep macOS, Windows, and Linux in the existing Parrot repository.
 - Place each native implementation under a platform-named root.
 - Keep platform build systems independent.
 - Share session and transcript contracts, compatibility fixtures, product
@@ -17,7 +17,7 @@ Last updated: `2026.08.01`
 
 ## 2. Rationale
 
-Quill has one product identity and one output contract, but each operating
+Parrot has one product identity and one output contract, but each operating
 system has different audio, lifecycle, interface, packaging, and inference
 APIs. A cross-platform application framework would not remove the
 platform-specific work in the recording path. Sharing application source would
@@ -47,7 +47,7 @@ workflow.
 
 ## 4. When to Revisit
 
-Reconsider this structure if Quill adopts a shared runtime that eliminates a
+Reconsider this structure if Parrot adopts a shared runtime that eliminates a
 material amount of native code, platform releases acquire independent owners
 or product identities, or coordination overhead inside the monorepo becomes
 greater than contract drift across separate repositories.

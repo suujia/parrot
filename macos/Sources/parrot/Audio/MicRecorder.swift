@@ -25,6 +25,7 @@ final class MicRecorder: TrackRecorder, @unchecked Sendable {
         case engineStartFailed(Error)
         case fileCreationFailed(Error)
         case formatUnsupported(AVAudioFormat)
+        case noInputDevice
 
         var description: String {
             switch self {
@@ -32,13 +33,14 @@ final class MicRecorder: TrackRecorder, @unchecked Sendable {
             case .engineStartFailed(let e): return "mic engine start failed: \(e)"
             case .fileCreationFailed(let e): return "mic file creation failed: \(e)"
             case .formatUnsupported(let f): return "can't downmix mic format \(f)"
+            case .noInputDevice: return "no microphone input device available"
             }
         }
     }
 
     let kind = TrackKind.mic
 
-    private let control = DispatchQueue(label: "com.digimata.quill.mic-control")
+    private let control = DispatchQueue(label: "com.suujia.parrot.mic-control")
     private var engine: AVAudioEngine?
     private var segment: SegmentFile?
     private var configObserver: NSObjectProtocol?
@@ -106,6 +108,13 @@ final class MicRecorder: TrackRecorder, @unchecked Sendable {
                     ))
                 voice = false
             }
+        }
+        // With no input device the hardware side reports 0 ch / 0 Hz while
+        // outputFormat still claims a default stereo format; installTap then
+        // raises an ObjC exception Swift can't catch — fail cleanly instead.
+        let hardwareFormat = input.inputFormat(forBus: 0)
+        guard hardwareFormat.channelCount > 0, hardwareFormat.sampleRate > 0 else {
+            throw RecorderError.noInputDevice
         }
         let inputFormat = input.outputFormat(forBus: 0)
 

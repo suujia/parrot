@@ -2,7 +2,7 @@
 import PackageDescription
 
 let package = Package(
-    name: "quill",
+    name: "parrot",
     platforms: [.macOS(.v15)],
     dependencies: [
         .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.3.0"),
@@ -10,27 +10,18 @@ let package = Package(
     ],
     targets: [
         .executableTarget(
-            name: "quill",
+            name: "parrot",
             dependencies: [
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
                 .product(name: "FluidAudio", package: "FluidAudio"),
             ],
-            exclude: ["Info.plist"],
-            linkerSettings: [
-                // Embed Info.plist into the binary so TCC can attribute the
-                // system-audio-capture permission to quill itself when it
-                // runs as a LaunchAgent (no .app bundle to carry a plist).
-                .unsafeFlags([
-                    "-Xlinker", "-sectcreate",
-                    "-Xlinker", "__TEXT",
-                    "-Xlinker", "__info_plist",
-                    "-Xlinker", "Sources/quill/Info.plist",
-                ]),
-            ]
+            // Info.plist and the entitlements belong to Parrot.app; see
+            // scripts/build-macos-app.
+            exclude: ["Info.plist", "Parrot.entitlements"]
         ),
         .testTarget(
-            name: "QuillTests",
-            dependencies: ["quill"]
+            name: "ParrotTests",
+            dependencies: ["parrot"]
         ),
     ]
 )

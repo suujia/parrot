@@ -1,6 +1,6 @@
 import XCTest
 
-@testable import quill
+@testable import parrot
 
 /// Schema compatibility: v2 write/read round-trips, and existing v1 sessions
 /// produce the same normalized transcription inputs as before.
@@ -9,7 +9,7 @@ final class SessionMetaTests: XCTestCase {
 
     override func setUpWithError() throws {
         dir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("quill-meta-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("parrot-meta-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
     }
 

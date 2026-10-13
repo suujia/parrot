@@ -1,15 +1,15 @@
-# Quill architecture
+# Parrot architecture
 
 Last updated: `2026.08.04`
 
-Quill is one product with separate native implementations for each supported
+Parrot is one product with separate native implementations for each supported
 desktop platform. Platform code does not share a runtime or source language.
 Compatibility is maintained through shared behavioral contracts and fixtures.
 
 ## Repository boundaries
 
 ```text
-Quill product
+Parrot product
 ├── shared behavior and formats
 ├── macOS implementation
 │   ├── Swift and AppKit lifecycle
@@ -86,10 +86,10 @@ Rules the schema encodes:
 
 Formal JSON schemas and compatibility fixtures will be extracted before the
 Windows capture probe becomes a full application. Until then, the macOS output
-implemented in `macos/Sources/quill/SessionMeta.swift`,
-`macos/Sources/quill/RecordingSession.swift`, and
-`macos/Sources/quill/Transcription/TranscriptionCoordinator.swift` is the
-reference behavior, with schema tests in `macos/Tests/QuillTests/`.
+implemented in `macos/Sources/parrot/SessionMeta.swift`,
+`macos/Sources/parrot/RecordingSession.swift`, and
+`macos/Sources/parrot/Transcription/TranscriptionCoordinator.swift` is the
+reference behavior, with schema tests in `macos/Tests/ParrotTests/`.
 
 ## Build and release boundaries
 

@@ -1,27 +1,36 @@
-# quill for macOS
+# Parrot for macOS
 
 A minimal, fully local macOS meeting recorder + transcriber. One menu-bar
 click records your mic and all system audio as two separate tracks; when you
-stop, quill transcribes both on-device and writes a speaker-tagged transcript.
+stop, parrot transcribes both on-device and writes a speaker-tagged transcript.
 Nothing ever leaves the machine.
 
-The macOS implementation is a single Swift binary with a menu-bar tray and no
-app bundle.
+The macOS implementation is a single Swift executable, packaged as a
+menu-bar-only app bundle (`Parrot.app`, `LSUIElement` — no Dock tile). It
+lives in `/Applications`, shows up in Launchpad and Spotlight, and can start
+itself at login.
 
 ## Install
 
 ```sh
-cd quill
-./scripts/build-macos
-sudo ./scripts/install-macos
-quill install --launch-at-login   # optional — runs in the background on login
+cd parrot
+./scripts/build-macos-app          # swift build -c release + assemble macos/.build/Parrot.app
+sudo ./scripts/install-macos       # ditto → /Applications/Parrot.app, symlink /usr/local/bin/parrot
+open /Applications/Parrot.app      # or launch "Parrot" from Launchpad / Spotlight
 ```
 
-For direct development inside this platform package:
+Then click the feather → **Launch at login** (or `parrot install
+--launch-at-login`) so it comes back on its own after a reboot. The installer
+quits a running Parrot before replacing the bundle and relaunches it after.
+`PARROT_INSTALL_DIR` / `PARROT_BIN_DIR` override `/Applications` and
+`/usr/local/bin`.
+
+For development, no bundle is needed:
 
 ```sh
 cd macos
-swift build -c release
+swift run parrot                   # bare menu-bar app; notifications fall back to osascript
+./scripts/build-macos              # just the release binary, no .app
 ```
 
 **Requires:** macOS 15+ (Core Audio process taps for system audio — no
@@ -30,7 +39,9 @@ transcription speed.
 
 ## How to use
 
-1. **Run it** (`quill` in a terminal, or the LaunchAgent).
+1. **Run it** — open Parrot from Launchpad/Spotlight (or `open
+   /Applications/Parrot.app`). Opening it again while it is running does not
+   start a second copy; it just pops the menu so you can see where it is.
 2. **Click the feather in the menu bar → Start recording.** First use prompts
    for microphone and System Audio Recording permissions. While recording, the
    icon turns red with a running elapsed counter, and macOS shows the purple
@@ -61,7 +72,7 @@ written is still readable.
 
 macOS audio routes are not stable for the length of a meeting — connecting or
 disconnecting AirPods, or changing the default device, can silently stop a
-capture stream. Quill watches both tracks (a one-second watchdog over callback
+capture stream. Parrot watches both tracks (a one-second watchdog over callback
 progress, plus route-change notifications) and, if a track stalls, restarts it
 on the current route into a new numbered segment (`mic-002.caf`, …). The
 already-recorded segment is never modified.
@@ -93,7 +104,7 @@ the tail or an unrecovered stall).
 Built in, on-device, automatic. The default engine is **Parakeet TDT 0.6B v2**
 (English) via [FluidAudio](https://github.com/FluidInference/FluidAudio)'s
 Core ML port — roughly 20 seconds per hour of audio on Apple Silicon. Models
-(~600 MB) download once on first transcription; `quill doctor` tells you
+(~600 MB) download once on first transcription; `parrot doctor` tells you
 whether they're already cached so you're never downloading after an important
 meeting.
 
@@ -109,7 +120,7 @@ large-v3-turbo) is planned as the fallback / re-transcription option.
 
 ## Config
 
-Optional, at `~/.config/quill/config.json`:
+Optional, at `~/.config/parrot/config.json`:
 
 ```json
 {
@@ -133,19 +144,43 @@ Optional, at `~/.config/quill/config.json`:
   transcription is disabled). Wire it to whatever comes next: summarization,
   filing, indexing.
 
+## Launch at login
+
+Parrot registers itself with `SMAppService.mainApp`, so it appears under
+System Settings → General → Login Items & Extensions as **Parrot** and
+survives reboots. Toggle it from the menu (**Launch at login**) or the CLI.
+If macOS wants you to approve it first, the menu says so and offers **Open
+Login Items settings…**.
+
+`SMAppService` does not relaunch Parrot after a crash. The default accepts
+that: a crash is rare, and a relaunch loop would hide it. If you want the old
+behaviour, `parrot install --launch-at-login --keep-alive` writes a
+`KeepAlive` LaunchAgent (`~/Library/LaunchAgents/com.suujia.parrot.plist`)
+pointing at the bundle's executable and logging to `/tmp/parrot.out.log` /
+`/tmp/parrot.err.log` instead. Never both: each mode removes the other.
+`--launch-at-login` also removes a leftover `com.digimata.quill` LaunchAgent
+from pre-0.2 installs.
+
 ## CLI
 
+`/usr/local/bin/parrot` is a symlink into the bundle, so the CLI runs the
+same binary as the menu-bar app.
+
 ```sh
-quill                        # run the menu-bar daemon (^C to quit)
-quill run --out <dir>        # custom recordings root (default ~/Recordings)
-quill doctor                 # check permissions, recordings folder, models
-quill install --launch-at-login
-quill install --uninstall
+parrot                        # run the menu-bar app (^C to quit)
+parrot run --out <dir>        # custom recordings root (default ~/Recordings)
+parrot doctor                 # check permissions, recordings folder, models, login item
+parrot install --launch-at-login [--keep-alive]
+parrot install --uninstall
 ```
 
 ## Stack
 
-- **Swift** — single SPM executable target
+- **Swift** — single SPM executable target, wrapped in `Parrot.app` by
+  `scripts/build-macos-app` (ad-hoc signed, hardened runtime, audio-input
+  entitlement)
+- **ServiceManagement** (`SMAppService`) — launch at login
+- **UserNotifications** — banners from the bundle (osascript when run bare)
 - **Core Audio process tap** (`AudioHardwareCreateProcessTap`, macOS 14.2+) —
   system audio capture via a private aggregate device
 - **AVAudioEngine** — mic capture
@@ -162,5 +197,10 @@ quill install --uninstall
   Screen & System Audio Recording.
 - Parakeet v2 is English-only. Other languages will come with the Whisper
   engine.
-- The binary embeds its Info.plist (`__TEXT,__info_plist`) so TCC can
-  attribute permissions to quill itself when running as a LaunchAgent.
+- TCC permissions are attributed to `Parrot.app` (bundle id
+  `com.suujia.parrot`). A bare `swift run parrot` has no bundle and no
+  usage descriptions, so grant permissions to the installed app, not the dev
+  binary. Re-signing (every `install-macos`) can make macOS ask again.
+- `~/.config/quill/config.json` from pre-0.2 installs is still read when
+  `~/.config/parrot/config.json` is missing, with a deprecation note; move
+  it, the fallback goes away in the next release.

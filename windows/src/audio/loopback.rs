@@ -66,7 +66,7 @@ impl TrackRecorder for LoopbackRecorder {
         let (ready_tx, ready_rx) = mpsc::channel();
 
         let worker = std::thread::Builder::new()
-            .name("quill-loopback".into())
+            .name("parrot-loopback".into())
             .spawn(move || {
                 let _com = match ComGuard::init() {
                     Ok(g) => g,

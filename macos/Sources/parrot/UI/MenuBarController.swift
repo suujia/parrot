@@ -1,10 +1,11 @@
 import AppKit
+import ServiceManagement
 
 /// Status bar item in the top-right of the menu bar. Shows recording state at
 /// a glance and provides the only persistent control surface for the daemon
 /// (since we run as `.accessory` — no dock icon, no main window).
 @MainActor
-final class MenuBarController {
+final class MenuBarController: NSObject, NSMenuDelegate {
     /// What the menu communicates about capture. Recovering and degraded are
     /// distinct from healthy recording so a user glancing mid-meeting can see
     /// that something happened; elapsed time stays visible in every recording
@@ -21,12 +22,18 @@ final class MenuBarController {
     private let warningLabel: NSMenuItem
     private let transcriptionLabel: NSMenuItem
     private let toggleItem: NSMenuItem
+    private let launchAtLoginItem: NSMenuItem
+    private let approvalLabel: NSMenuItem
+    private let openLoginItemsItem: NSMenuItem
 
     var onToggle: (() -> Void)?
     var onOpenFolder: (() -> Void)?
     var onQuit: (() -> Void)?
+    var onToggleLaunchAtLogin: (() -> Void)?
+    var onOpenLoginItems: (() -> Void)?
+    var onMenuWillOpen: (() -> Void)?
 
-    init() {
+    override init() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
 
         let menu = NSMenu()
@@ -64,17 +71,44 @@ final class MenuBarController {
 
         menu.addItem(.separator())
 
+        launchAtLoginItem = NSMenuItem(
+            title: "Launch at login",
+            action: #selector(launchAtLoginClicked),
+            keyEquivalent: ""
+        )
+        menu.addItem(launchAtLoginItem)
+
+        approvalLabel = NSMenuItem(title: "Approve Parrot in Login Items to finish", action: nil, keyEquivalent: "")
+        approvalLabel.isEnabled = false
+        approvalLabel.isHidden = true
+        approvalLabel.indentationLevel = 1
+        menu.addItem(approvalLabel)
+
+        openLoginItemsItem = NSMenuItem(
+            title: "Open Login Items settings…",
+            action: #selector(openLoginItemsClicked),
+            keyEquivalent: ""
+        )
+        openLoginItemsItem.isHidden = true
+        openLoginItemsItem.indentationLevel = 1
+        menu.addItem(openLoginItemsItem)
+
+        menu.addItem(.separator())
+
         let quit = NSMenuItem(
-            title: "Quit quill",
+            title: "Quit Parrot",
             action: #selector(quitClicked),
             keyEquivalent: "q"
         )
         menu.addItem(quit)
 
-        for item in [toggleItem, openFolder, quit] {
+        super.init()
+
+        for item in [toggleItem, openFolder, launchAtLoginItem, openLoginItemsItem, quit] {
             item.target = self
         }
 
+        menu.delegate = self
         statusItem.menu = menu
 
         if let button = statusItem.button {
@@ -116,6 +150,27 @@ final class MenuBarController {
         warningLabel.isHidden = !warn
     }
 
+    /// Reflect SMAppService's view of the login item. Outside Parrot.app
+    /// (`swift run`) the item is disabled — there is no bundle to register.
+    func updateLaunchAtLogin(_ status: SMAppService.Status) {
+        let bundled = AppBundle.isBundled
+        launchAtLoginItem.isEnabled = bundled
+        launchAtLoginItem.title = bundled ? "Launch at login" : "Launch at login (needs Parrot.app)"
+        launchAtLoginItem.state = status == .enabled ? .on : .off
+        let needsApproval = status == .requiresApproval
+        approvalLabel.isHidden = !needsApproval
+        openLoginItemsItem.isHidden = !needsApproval
+    }
+
+    /// Open the status-bar menu as if the feather had been clicked.
+    func showMenu() {
+        statusItem.button?.performClick(nil)
+    }
+
+    func menuWillOpen(_ menu: NSMenu) {
+        onMenuWillOpen?()
+    }
+
     /// Show transcription progress/failure as a second status line in the
     /// menu; nil hides it. Independent of recording state — a new recording
     /// can run while the last one transcribes.
@@ -149,4 +204,6 @@ final class MenuBarController {
     @objc private func toggleClicked() { onToggle?() }
     @objc private func openFolderClicked() { onOpenFolder?() }
     @objc private func quitClicked() { onQuit?() }
+    @objc private func launchAtLoginClicked() { onToggleLaunchAtLogin?() }
+    @objc private func openLoginItemsClicked() { onOpenLoginItems?() }
 }

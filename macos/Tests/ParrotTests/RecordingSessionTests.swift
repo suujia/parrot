@@ -1,6 +1,6 @@
 import XCTest
 
-@testable import quill
+@testable import parrot
 
 /// A recorder the session can start, stop, and poll without audio devices.
 /// Tests drive its telemetry by hand and can make starts fail on demand.
@@ -67,7 +67,7 @@ final class RecordingSessionTests: XCTestCase {
 
     override func setUpWithError() throws {
         root = FileManager.default.temporaryDirectory
-            .appendingPathComponent("quill-session-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("parrot-session-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         time = TimeBox()
         mic = FakeRecorder(kind: .mic)

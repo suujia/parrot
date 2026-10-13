@@ -1,9 +1,9 @@
-# quill for Linux
+# Parrot for Linux
 
 **Status:** Capture probe proposed; no installable build exists.
 
 The Linux implementation will use the same session and transcript contracts as
-the other Quill platforms. Its first technical boundary is PipeWire capture:
+the other Parrot platforms. Its first technical boundary is PipeWire capture:
 
 ```text
 selected playback node or stream via PipeWire -> them

@@ -1,0 +1,48 @@
+#!/bin/sh
+# Build Parrot.app from the SwiftPM release binary. Idempotent: the bundle is
+# rebuilt from scratch at macos/.build/Parrot.app on every run.
+set -eu
+
+script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+repo_root=$(dirname -- "$script_dir")
+
+cd "$repo_root/macos"
+swift build -c release "$@"
+
+bin_dir=$(swift build -c release --show-bin-path)
+binary="$bin_dir/parrot"
+app=".build/Parrot.app"
+contents="$app/Contents"
+iconset=".build/AppIcon.iconset"
+
+rm -rf "$app" "$iconset"
+mkdir -p "$contents/MacOS" "$contents/Resources"
+
+cp "$binary" "$contents/MacOS/parrot"
+cp Sources/parrot/Info.plist "$contents/Info.plist"
+printf 'APPL????' > "$contents/PkgInfo"
+
+# App icon: docs/icon.png -> AppIcon.icns via an .iconset of the standard sizes.
+mkdir -p "$iconset"
+for size in 16 32 128 256 512; do
+    sips -z "$size" "$size" "$repo_root/docs/icon.png" --out "$iconset/icon_${size}x${size}.png" >/dev/null
+    double=$((size * 2))
+    sips -z "$double" "$double" "$repo_root/docs/icon.png" --out "$iconset/icon_${size}x${size}@2x.png" >/dev/null
+done
+iconutil -c icns "$iconset" -o "$contents/Resources/AppIcon.icns"
+rm -rf "$iconset"
+
+# SwiftPM resource bundles produced by dependencies (none today; kept so a
+# dependency that adds one does not silently break the bundle).
+for bundle in "$bin_dir"/*.bundle; do
+    [ -d "$bundle" ] || continue
+    cp -R "$bundle" "$contents/Resources/"
+done
+
+# Ad-hoc signature with the hardened runtime. Parrot.entitlements grants
+# audio-input, which the hardened runtime requires for microphone capture.
+codesign --force --deep --options runtime \
+    --entitlements Sources/parrot/Parrot.entitlements \
+    --sign - "$app"
+
+printf 'built %s\n' "$repo_root/macos/$app"

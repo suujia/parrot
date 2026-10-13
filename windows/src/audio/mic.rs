@@ -47,7 +47,7 @@ impl TrackRecorder for MicRecorder {
         let (ready_tx, ready_rx) = mpsc::channel();
 
         let worker = std::thread::Builder::new()
-            .name("quill-mic".into())
+            .name("parrot-mic".into())
             .spawn(move || {
                 let _com = match ComGuard::init() {
                     Ok(g) => g,

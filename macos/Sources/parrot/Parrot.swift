@@ -3,13 +3,26 @@ import ArgumentParser
 import Foundation
 
 @main
-struct Quill: ParsableCommand {
+struct Parrot: ParsableCommand {
     static let configuration = CommandConfiguration(
-        commandName: "quill",
+        commandName: "parrot",
         abstract: "Local meeting recorder + transcriber. Records mic and system audio as two tracks, then transcribes on-device.",
         subcommands: [Run.self, Doctor.self, Install.self],
         defaultSubcommand: Run.self
     )
+
+    static func main() {
+        AppBundle.reexecThroughSymlinkIfNeeded()
+        Self.main(nil)
+    }
+
+    /// Another process with Parrot's bundle id, if any. A bare `swift run`
+    /// binary has no bundle id and so is not seen by other instances, but it
+    /// does see (and defers to) an installed Parrot.app.
+    static func otherRunningInstance() -> NSRunningApplication? {
+        NSRunningApplication.runningApplications(withBundleIdentifier: AppBundle.identifier)
+            .first { $0.processIdentifier != ProcessInfo.processInfo.processIdentifier }
+    }
 }
 
 struct Run: ParsableCommand {
@@ -31,6 +44,26 @@ struct Run: ParsableCommand {
     private func runMain() throws {
         let root = Config.resolveRoot(cliOverride: out)
 
+        // Launched by launchd / Launch Services there is no terminal; keep
+        // stderr somewhere `tail -f` can find it.
+        if isatty(STDERR_FILENO) == 0 {
+            freopen(KeepAliveAgent.errLog, "a", stderr)
+        }
+
+        // Single instance: a second launch (Spotlight, Launchpad, the CLI,
+        // a stray LaunchAgent) must never start a second recorder.
+        if let other = Parrot.otherRunningInstance() {
+            FileHandle.standardError.write(Data("Parrot is already running (pid \(other.processIdentifier)); showing it\n".utf8))
+            if let url = other.bundleURL {
+                // Launch Services delivers this as a reopen to the running
+                // instance, which pops the menu-bar menu.
+                NSWorkspace.shared.open(url)
+            } else {
+                other.activate()
+            }
+            throw ExitCode(0)
+        }
+
         // Non-blocking: permissions prompt on first recording, so warnings at
         // startup are informational, not fatal.
         let checks = DoctorReport.run(recordingsRoot: root)
@@ -42,22 +75,61 @@ struct Run: ParsableCommand {
 
         let app = NSApplication.shared
         app.setActivationPolicy(.accessory)
+        UserNotifier.shared.install()
 
         let controller = AppController(root: root)
+        let delegate = AppDelegate(controller: controller)
+        app.delegate = delegate
 
-        let sigint = DispatchSource.makeSignalSource(signal: SIGINT, queue: .main)
-        sigint.setEventHandler {
-            FileHandle.standardError.write(Data("\nshutting down\n".utf8))
-            MainActor.assumeIsolated { controller.shutdown() }
+        // ^C in a terminal and SIGTERM from launchd both go through the same
+        // path as Quit / logout: NSApp.terminate -> applicationShouldTerminate.
+        let signals = [SIGINT, SIGTERM].map { sig in
+            let source = DispatchSource.makeSignalSource(signal: sig, queue: .main)
+            source.setEventHandler {
+                FileHandle.standardError.write(Data("\nshutting down\n".utf8))
+                MainActor.assumeIsolated { controller.shutdown() }
+            }
+            source.resume()
+            signal(sig, SIG_IGN)
+            return source
         }
-        sigint.resume()
-        signal(SIGINT, SIG_IGN)
+        delegate.signalSources = signals
 
         FileHandle.standardError.write(
             Data(
-                "quill up · recordings → \(root.path) · ^C to quit\n".utf8
+                "parrot up · recordings → \(root.path) · \(AppBundle.isBundled ? "Quit from the menu bar" : "^C to quit")\n".utf8
             ))
         app.run()
+    }
+}
+
+/// Application lifecycle glue: reopen pops the menu, termination finalizes a
+/// live recording first.
+@MainActor
+final class AppDelegate: NSObject, NSApplicationDelegate {
+    private let controller: AppController
+    var signalSources: [DispatchSourceSignal] = []
+
+    init(controller: AppController) {
+        self.controller = controller
+    }
+
+    /// Spotlight / Launchpad / `open -a Parrot` while already running: there
+    /// is no window to show, so show where the app lives instead.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        controller.showMenu()
+        return false
+    }
+
+    /// Quit, logout, shutdown, SIGINT/SIGTERM all land here. RecordingSession
+    /// .stop() is synchronous (it tears down the tracks and writes meta.json
+    /// before returning), so the stop never needs the run loop and we can
+    /// answer .terminateNow; a pending transcript is picked up by the
+    /// filesystem queue on next launch. Switch to .terminateLater + reply if
+    /// stop ever becomes asynchronous.
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        controller.stopForTermination()
+        return .terminateNow
     }
 }
 
@@ -91,7 +163,11 @@ final class AppController {
         menuBar.onToggle = { [weak self] in self?.toggle() }
         menuBar.onOpenFolder = { [weak self] in self?.openFolder() }
         menuBar.onQuit = { [weak self] in self?.shutdown() }
+        menuBar.onToggleLaunchAtLogin = { [weak self] in self?.toggleLaunchAtLogin() }
+        menuBar.onOpenLoginItems = { LoginItem.openSettings() }
+        menuBar.onMenuWillOpen = { [weak self] in self?.refreshLaunchAtLogin() }
         menuBar.update(.idle)
+        menuBar.updateLaunchAtLogin(LoginItem.status)
 
         Task { [transcription, root] in
             await transcription.setStatusHandler { status in
@@ -103,10 +179,43 @@ final class AppController {
         }
     }
 
-    /// Stop any live session cleanly (finalizing files) and exit.
+    /// Quit. The live session (if any) is finalized in
+    /// applicationShouldTerminate, which this triggers.
     func shutdown() {
-        stopSession()
         NSApp.terminate(nil)
+    }
+
+    /// Stop a live session cleanly (finalizing files) ahead of process exit.
+    /// Idempotent; safe when nothing is recording.
+    func stopForTermination() {
+        stopSession()
+    }
+
+    /// Pop the status-bar menu (reopen from Spotlight / Launchpad).
+    func showMenu() {
+        menuBar.showMenu()
+    }
+
+    private func toggleLaunchAtLogin() {
+        do {
+            if LoginItem.isEnabled {
+                try LoginItem.unregister()
+            } else {
+                LegacyAgent.remove()
+                try KeepAliveAgent.remove()
+                try LoginItem.register()
+            }
+        } catch {
+            FileHandle.standardError.write(Data("launch at login change failed: \(error)\n".utf8))
+            notifyUser(title: "Parrot — launch at login", body: "\(error.localizedDescription)")
+        }
+        menuBar.updateLaunchAtLogin(LoginItem.status)
+    }
+
+    /// Called when the menu is about to open so the checkmark reflects a
+    /// change made in System Settings.
+    private func refreshLaunchAtLogin() {
+        menuBar.updateLaunchAtLogin(LoginItem.status)
     }
 
     private func toggle() {
@@ -128,7 +237,7 @@ final class AppController {
                 // The session fires this once per degradation episode, so the
                 // user gets one notification, not one per watchdog tick.
                 notifyUser(
-                    title: "quill — \(kind.label) capture lost",
+                    title: "Parrot — \(kind.label) capture lost",
                     body: "Recovery failed; the recording will be marked incomplete."
                 )
             }
@@ -138,7 +247,7 @@ final class AppController {
             FileHandle.standardError.write(Data("● recording → \(newSession.dir.path)\n".utf8))
         } catch {
             FileHandle.standardError.write(Data("recording start failed: \(error)\n".utf8))
-            notifyUser(title: "quill — recording failed", body: "\(error)")
+            notifyUser(title: "Parrot — recording failed", body: "\(error)")
             return
         }
 
@@ -174,12 +283,12 @@ final class AppController {
             break
         case .recovered:
             notifyUser(
-                title: "quill — recording recovered",
+                title: "Parrot — recording recovered",
                 body: "Capture was interrupted and resumed; see meta.json for the gap."
             )
         case .incomplete:
             notifyUser(
-                title: "quill — recording incomplete",
+                title: "Parrot — recording incomplete",
                 body: "Part of the session was not captured; see meta.json."
             )
         }

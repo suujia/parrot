@@ -1,16 +1,16 @@
 [package]
-name = "quill"
+name = "parrot"
 version = "0.1.2"
 edition = "2021"
 license = "MIT"
 description = "Fully local meeting recorder and transcriber — Windows implementation"
 
 [lib]
-name = "quill"
+name = "parrot"
 path = "src/lib.rs"
 
 [[bin]]
-name = "quill-probe"
+name = "parrot-probe"
 path = "src/bin/probe.rs"
 
 [features]

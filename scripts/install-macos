@@ -1,17 +1,56 @@
 #!/bin/sh
+# Install Parrot.app into /Applications (PARROT_INSTALL_DIR) and symlink the
+# CLI into /usr/local/bin (PARROT_BIN_DIR). No sudo needed unless the bin dir
+# is not writable, in which case only the symlink step asks for it.
 set -eu
 
 script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 repo_root=$(dirname -- "$script_dir")
-install_dir=${QUILL_INSTALL_DIR:-/usr/local/bin}
-binary="$repo_root/macos/.build/release/quill"
+install_dir=${PARROT_INSTALL_DIR:-/Applications}
+bin_dir=${PARROT_BIN_DIR:-/usr/local/bin}
+built_app="$repo_root/macos/.build/Parrot.app"
+app="$install_dir/Parrot.app"
+bundle_id="com.suujia.parrot"
 
-if [ ! -x "$binary" ]; then
-    printf 'release binary not found; run ./scripts/build-macos first\n' >&2
+if [ ! -x "$built_app/Contents/MacOS/parrot" ]; then
+    printf 'Parrot.app not found; run ./scripts/build-macos-app first\n' >&2
     exit 1
 fi
 
-install -d "$install_dir"
-install -m 755 "$binary" "$install_dir/quill"
+# Quit a running instance so the copy is not swapped under it. The quit is
+# handled like Quit from the menu: a live recording is finalized first.
+was_running=0
+if pgrep -xq parrot; then
+    was_running=1
+    printf 'quitting running Parrot...\n'
+    osascript -e "tell application id \"$bundle_id\" to quit" >/dev/null 2>&1 || true
+    i=0
+    while pgrep -xq parrot && [ "$i" -lt 50 ]; do
+        sleep 0.2
+        i=$((i + 1))
+    done
+    pkill -x parrot 2>/dev/null || true
+fi
 
-printf 'installed quill to %s/quill\n' "$install_dir"
+[ -d "$install_dir" ] || mkdir -p "$install_dir"
+rm -rf "$app"
+ditto "$built_app" "$app"
+printf 'installed %s\n' "$app"
+
+link_target="$app/Contents/MacOS/parrot"
+if [ -w "$bin_dir" ] || { [ ! -e "$bin_dir" ] && [ -w "$(dirname -- "$bin_dir")" ]; }; then
+    install -d "$bin_dir"
+    ln -sfn "$link_target" "$bin_dir/parrot"
+else
+    sudo install -d "$bin_dir"
+    sudo ln -sfn "$link_target" "$bin_dir/parrot"
+fi
+printf 'linked %s/parrot -> %s\n' "$bin_dir" "$link_target"
+
+if [ "$was_running" -eq 1 ]; then
+    open "$app"
+    printf 'relaunched Parrot\n'
+else
+    printf 'launch:         open -a Parrot   (or Spotlight / Launchpad)\n'
+    printf 'start at login: parrot install --launch-at-login\n'
+fi
